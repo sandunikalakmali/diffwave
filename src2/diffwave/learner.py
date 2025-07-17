@@ -147,7 +147,9 @@ class DiffWaveLearner:
     writer = self.summary_writer or SummaryWriter(self.model_dir, purge_step=step)
     writer.add_audio('feature/audio', features['audio'][0], step, sample_rate=self.params.sample_rate)
     if not self.params.unconditional:
-      writer.add_image('feature/spectrogram', torch.flip(features['spectrogram'][:1], [1]), step)
+      # writer.add_image('feature/spectrogram', torch.flip(features['spectrogram'][:1], [1]), step)
+      spectrogram = torch.flip(features['spectrogram'][:1, 0], [0])  # [1, n_mels, n_frames]
+      writer.add_image('feature/spectrogram', spectrogram, step)
     writer.add_scalar('train/loss', loss, step)
     writer.add_scalar('train/grad_norm', self.grad_norm, step)
     writer.flush()

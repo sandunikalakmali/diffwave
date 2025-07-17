@@ -37,14 +37,15 @@ params = AttrDict(
     batch_size=16,
     learning_rate=2e-4,
     max_grad_norm=None,
-    
 
     # Data params
     sample_rate=44100, #22050,
-    n_mels=84,
+    n_mels=80,
     n_fft=1024,
     hop_samples=256,
     crop_mel_frames=62,  # Probably an error in paper.
+
+    n_channels = 2,
 
     # Model params
     residual_layers=30,
