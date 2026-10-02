@@ -1,138 +1,132 @@
-# DiffWave
-![PyPI Release](https://img.shields.io/pypi/v/diffwave?label=release) [![License](https://img.shields.io/github/license/lmnt-com/diffwave)](https://github.com/lmnt-com/diffwave/blob/master/LICENSE)
+# Feature Conditioned Diffusion for Audio Generation
 
-**We're hiring!**
-If you like what we're building here, [come join us at LMNT](https://explore.lmnt.com).
+Official code for **Feature Conditioned Diffusion for Audio Generation**, presented at the **2025 IEEE 19th International Conference on Industrial and Information Systems (ICIIS)**.
 
-DiffWave is a fast, high-quality neural vocoder and waveform synthesizer. It starts with Gaussian noise and converts it into speech via iterative refinement. The speech can be controlled by providing a conditioning signal (e.g. log-scaled Mel spectrogram). The model and architecture details are described in [DiffWave: A Versatile Diffusion Model for Audio Synthesis](https://arxiv.org/pdf/2009.09761.pdf).
+**Shakthi Perera · Sandunika Ranasinghe · Senith Jayakody · Buwaneka Epakanda · Roshan Godaliyadda · Mervyn Parakrama Ekanayake**
 
-## What's new (2021-11-09)
-- unconditional waveform synthesis (thanks to [Andrechang](https://github.com/Andrechang)!)
+University of Peradeniya, Sri Lanka
 
-## What's new (2021-04-01)
-- fast sampling algorithm based on v3 of the DiffWave paper
+[Paper](https://ieeexplore.ieee.org/document/11450741) | [DOI](https://doi.org/10.1109/ICIIS69028.2026.11450741) | [Original DiffWave Code](https://github.com/lmnt-com/diffwave)
 
-## What's new (2020-10-14)
-- new pretrained model trained for 1M steps
-- updated audio samples with output from new model
+## Overview
 
-## Status (2021-11-09)
-- [x] fast inference procedure
-- [x] stable training
-- [x] high-quality synthesis
-- [x] mixed-precision training
-- [x] multi-GPU training
-- [x] command-line inference
-- [x] programmatic inference API
-- [x] PyPI package
-- [x] audio samples
-- [x] pretrained models
-- [x] unconditional waveform synthesis
+We study how different audio features guide a diffusion model to generate waveforms. Starting from the original DiffWave implementation, we compare Mel spectrograms, Mel Frequency Cepstral Coefficients (MFCCs), Constant Q Transform (CQT), Karhunen–Loève Transform (KLT), and the combinations **Mel+MFCC** and **Mel+CQT**.
 
-Big thanks to [Zhifeng Kong](https://github.com/FengNiMa) (lead author of DiffWave) for pointers and bug fixes.
+We evaluate these conditioning methods on **LJSpeech** for speech, **ESC-50** for environmental sounds, and **IRMAS** for music. Combining Mel and CQT gives the lowest Fréchet Audio Distance (FAD) across all three datasets in our experiments.
 
-## Audio samples
-[22.05 kHz audio samples](https://lmnt.com/assets/diffwave)
+## Method
 
-## Pretrained models
-[22.05 kHz pretrained model](https://lmnt.com/assets/diffwave/diffwave-ljspeech-22kHz-1000578.pt) (31 MB, SHA256: `d415d2117bb0bba3999afabdd67ed11d9e43400af26193a451d112e2560821a8`)
+The model starts with Gaussian noise and gradually denoises it into an audio waveform, guided by the selected conditioning representation.
 
-This pre-trained model is able to synthesize speech with a real-time factor of 0.87 (smaller is faster).
+<p align="center">
+  <img src="plots/Inference_model.png" alt="DiffWave inference guided by a conditioning representation" width="650">
+</p>
 
-### Pre-trained model details
-- trained on 4x 1080Ti
-- default parameters
-- single precision floating point (FP32)
-- trained on LJSpeech dataset excluding LJ001&ast; and LJ002&ast;
-- trained for 1000578 steps (1273 epochs)
+*Figure 1. Audio generation from noise using feature conditioning.*
 
-## Install
+The paper uses 80 coefficients for Mel, MFCC, and CQT, with a hop size of 256 samples. Mel and MFCC use an FFT size and window size of 1024. CQT uses 12 bins per octave. KLT retains two components from an 80-dimensional basis. Hybrid features are supplied as two input channels.
 
-Install using pip:
-```
-pip install diffwave
-```
+## Conditioning Representations
 
-or from GitHub:
-```
-git clone https://github.com/lmnt-com/diffwave.git
-cd diffwave
-pip install .
-```
+The examples below show **(a) LJSpeech, (b) ESC-50, and (c) IRMAS** from left to right.
 
-### Paper conditioning preprocessors
+### Mel Spectrogram
 
-Install dependencies with `pip install .`. From the repository root in PowerShell:
+Mel spectrograms describe how energy changes over time on a frequency scale aligned with human hearing.
 
-```powershell
-# CQT: [80, frames]
-$env:PYTHONPATH = "$PWD\src"
-python -m diffwave.preprocess_cqt C:\datasets\cqt
+![Mel spectrogram examples for LJSpeech, ESC-50, and IRMAS](plots/mel_spectrograms.png)
 
-# Mel+CQT: [2, 80, frames]
-$env:PYTHONPATH = "$PWD\src2"
-python -m 'diffwave.preprocess_mel+cqt' C:\datasets\mel_cqt
+### MFCC
 
-# KLT: [2, 80, frames]
-python -m diffwave.preprocess_klt C:\datasets\klt
-```
+MFCCs provide a compact description of the spectral envelope and timbral characteristics.
 
-Use the same `PYTHONPATH` when training to load the corresponding model.
-Set `sample_rate` in the selected tree's `diffwave/params.py` to match the
-dataset: 22050 for LJSpeech, or 44100 for ESC-50 and IRMAS. Mismatched sample
-rates are rejected. Each script writes `<audio filename>.spec.npy`, so use
-separate dataset copies for each experiment to avoid overwriting features.
+![MFCC examples for LJSpeech, ESC-50, and IRMAS](plots/mfcc_spectrograms.png)
 
-Section IV-F of the supplied paper specifies 80 feature bins, hop 256,
-12 CQT bins per octave, and FFT/window sizes of 1024 for Mel. CQT uses C1
-(approximately 32.7 Hz) as its minimum frequency, which the paper does not
-specify, and the existing Mel preprocessor's logarithmic normalization.
+### CQT
 
-KLT retains the two eigenvectors with the largest eigenvalues from an
-80-dimensional basis. The implementation averages STFT magnitudes into 80
-linear frequency bands, fits a centered covariance per recording, and saves
-each component's rank-one contribution as an 80-band channel. Signed log
-compression and scaling per channel preserve negative contributions. These
-choices are documented in `src2/diffwave/preprocess_klt.py`: the paper leaves
-the block layout, covariance scope, channel mapping, and normalization
-underspecified, so this is an explicit interpretation rather than an exact
-reproduction of the authors' experimental preprocessing.
+CQT uses logarithmically spaced frequency bins to capture pitch and harmonic structure.
 
-### Training
-Before you start training, you'll need to prepare a training dataset. The dataset can have any directory structure as long as the contained .wav files are 16-bit mono (e.g. [LJSpeech](https://keithito.com/LJ-Speech-Dataset/), [VCTK](https://pytorch.org/audio/_modules/torchaudio/datasets/vctk.html)). By default, this implementation assumes a sample rate of 22.05 kHz. If you need to change this value, edit [params.py](https://github.com/lmnt-com/diffwave/blob/master/src/diffwave/params.py).
+![CQT examples for LJSpeech, ESC-50, and IRMAS](plots/cqt_spectrograms.png)
 
-```
-python -m diffwave.preprocess /path/to/dir/containing/wavs
-python -m diffwave /path/to/model/dir /path/to/dir/containing/wavs
+### KLT
 
-# in another shell to monitor training progress:
-tensorboard --logdir /path/to/model/dir --bind_all
+KLT projects spectral features onto a decorrelated basis. We study conditioning with the first two components.
+
+![First and second KLT component examples for LJSpeech, ESC-50, and IRMAS](plots/klt_spectrograms.png)
+
+## Key Results
+
+**Mel+CQT achieves the lowest FAD on every dataset.** Mel supplies perceptually useful spectral information, while CQT adds harmonic detail. Their combination improves audio fidelity and diversity compared with Mel conditioning alone. These values are reported in Table I of the [paper](https://ieeexplore.ieee.org/document/11450741).
+
+| Dataset | Audio type | Mel FAD ↓ | Mel+CQT FAD ↓ |
+| --- | --- | ---: | ---: |
+| LJSpeech | Speech | 6.19 | **5.45** |
+| ESC-50 | Environmental sounds | 8.38 | **6.71** |
+| IRMAS | Music | 5.63 | **4.60** |
+
+The radar plots compare FAD, precision, recall, density, and coverage. Values are normalized, and FAD is inverted so that larger values indicate better performance on every axis. Mel+CQT offers the strongest overall balance, although individual methods can score higher on particular metrics.
+
+<table>
+  <tr>
+    <th>LJSpeech</th>
+    <th>ESC-50</th>
+    <th>IRMAS</th>
+  </tr>
+  <tr>
+    <td><img src="plots/radar_lj.png" alt="LJSpeech conditioning comparison" width="350"></td>
+    <td><img src="plots/radar_esc.png" alt="ESC-50 conditioning comparison" width="350"></td>
+    <td><img src="plots/radar_irmas.png" alt="IRMAS conditioning comparison" width="350"></td>
+  </tr>
+</table>
+
+## Folder Structure
+
+```text
+.
+├── plots/                         # Feature examples, model diagram, and results
+├── src/
+│   └── diffwave/                  # Single-channel conditioning
+│       ├── preprocess.py          # Mel
+│       ├── preprocess_mfcc.py      # MFCC
+│       ├── preprocess_cqt.py       # CQT
+│       ├── params.py              # Feature and training settings
+│       ├── model.py               # DiffWave model
+│       ├── dataset.py             # Dataset loading
+│       ├── learner.py             # Training
+│       └── inference.py           # Waveform generation
+├── src2/
+│   └── diffwave/                  # Two-channel conditioning
+│       ├── preprocess_mel+mfcc.py # Mel+MFCC
+│       ├── preprocess_mel+cqt.py  # Mel+CQT
+│       ├── preprocess_klt.py      # Two KLT component maps
+│       └── ...                    # Model, data, training, and inference modules
+├── setup.py                       # Package dependencies
+├── LICENSE
+└── README.md
 ```
 
-You should expect to hear intelligible (but noisy) speech by ~8k steps (~1.5h on a 2080 Ti).
+Preprocessing saves features as `<audio filename>.spec.npy`. Use `src` for single-channel experiments and `src2` for two-channel experiments, with the matching parameters and model. Implementation choices for details not fully specified in the paper are documented in the CQT and KLT preprocessors.
 
-#### Multi-GPU training
-By default, this implementation uses as many GPUs in parallel as returned by [`torch.cuda.device_count()`](https://pytorch.org/docs/stable/cuda.html#torch.cuda.device_count). You can specify which GPUs to use by setting the [`CUDA_DEVICES_AVAILABLE`](https://developer.nvidia.com/blog/cuda-pro-tip-control-gpu-visibility-cuda_visible_devices/) environment variable before running the training module.
+## Acknowledgements
 
-### Inference API
-Basic usage:
+This codebase is built on the [original official DiffWave implementation by LMNT](https://github.com/lmnt-com/diffwave), accompanying [DiffWave: A Versatile Diffusion Model for Audio Synthesis](https://arxiv.org/abs/2009.09761). We thank the original authors and maintainers for making their code available. The original license and copyright notices are retained.
 
-```python
-from diffwave.inference import predict as diffwave_predict
+## Citation
 
-model_dir = '/path/to/model/dir'
-spectrogram = # get your hands on a spectrogram in [N,C,W] format
-audio, sample_rate = diffwave_predict(spectrogram, model_dir, fast_sampling=True)
+If you use this work in your research, please cite our paper:
 
-# audio is a GPU tensor in [N,T] format.
+```bibtex
+@inproceedings{perera2026feature,
+  author    = {Shakthi Perera and Sandunika Ranasinghe and Senith Jayakody and
+               Buwaneka Epakanda and Roshan Godaliyadda and Mervyn Parakrama Ekanayake},
+  title     = {Feature Conditioned Diffusion for Audio Generation},
+  booktitle = {2025 IEEE 19th International Conference on Industrial and Information Systems (ICIIS)},
+  year      = {2026},
+  pages     = {162--167},
+  publisher = {IEEE},
+  doi       = {10.1109/ICIIS69028.2026.11450741},
+  url       = {https://ieeexplore.ieee.org/document/11450741}
+}
 ```
 
-### Inference CLI
-```
-python -m diffwave.inference --fast /path/to/model /path/to/spectrogram -o output.wav
-```
-
-## References
-- [DiffWave: A Versatile Diffusion Model for Audio Synthesis](https://arxiv.org/pdf/2009.09761.pdf)
-- [Denoising Diffusion Probabilistic Models](https://arxiv.org/pdf/2006.11239.pdf)
-- [Code for Denoising Diffusion Probabilistic Models](https://github.com/hojonathanho/diffusion)
+The conference is named ICIIS 2025; the publisher's citation metadata records publication in 2026.
