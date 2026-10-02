@@ -53,6 +53,7 @@ setup(name = 'diffwave',
     package_dir = { '': 'src' },
     install_requires = [
         'numpy',
+        'librosa>=0.10.2,<0.12',
         'torch>=1.6',
         'torchaudio>=0.9.0',
         'tqdm'
