@@ -60,6 +60,44 @@ cd diffwave
 pip install .
 ```
 
+### Paper conditioning preprocessors
+
+Install dependencies with `pip install .`. From the repository root in PowerShell:
+
+```powershell
+# CQT: [80, frames]
+$env:PYTHONPATH = "$PWD\src"
+python -m diffwave.preprocess_cqt C:\datasets\cqt
+
+# Mel+CQT: [2, 80, frames]
+$env:PYTHONPATH = "$PWD\src2"
+python -m 'diffwave.preprocess_mel+cqt' C:\datasets\mel_cqt
+
+# KLT: [2, 80, frames]
+python -m diffwave.preprocess_klt C:\datasets\klt
+```
+
+Use the same `PYTHONPATH` when training to load the corresponding model.
+Set `sample_rate` in the selected tree's `diffwave/params.py` to match the
+dataset: 22050 for LJSpeech, or 44100 for ESC-50 and IRMAS. Mismatched sample
+rates are rejected. Each script writes `<audio filename>.spec.npy`, so use
+separate dataset copies for each experiment to avoid overwriting features.
+
+Section IV-F of the supplied paper specifies 80 feature bins, hop 256,
+12 CQT bins per octave, and FFT/window sizes of 1024 for Mel. CQT uses C1
+(approximately 32.7 Hz) as its minimum frequency, which the paper does not
+specify, and the existing Mel preprocessor's logarithmic normalization.
+
+KLT retains the two eigenvectors with the largest eigenvalues from an
+80-dimensional basis. The implementation averages STFT magnitudes into 80
+linear frequency bands, fits a centered covariance per recording, and saves
+each component's rank-one contribution as an 80-band channel. Signed log
+compression and scaling per channel preserve negative contributions. These
+choices are documented in `src2/diffwave/preprocess_klt.py`: the paper leaves
+the block layout, covariance scope, channel mapping, and normalization
+underspecified, so this is an explicit interpretation rather than an exact
+reproduction of the authors' experimental preprocessing.
+
 ### Training
 Before you start training, you'll need to prepare a training dataset. The dataset can have any directory structure as long as the contained .wav files are 16-bit mono (e.g. [LJSpeech](https://keithito.com/LJ-Speech-Dataset/), [VCTK](https://pytorch.org/audio/_modules/torchaudio/datasets/vctk.html)). By default, this implementation assumes a sample rate of 22.05 kHz. If you need to change this value, edit [params.py](https://github.com/lmnt-com/diffwave/blob/master/src/diffwave/params.py).
 
