@@ -6,7 +6,7 @@ Official code for **Feature Conditioned Diffusion for Audio Generation**, presen
 
 University of Peradeniya, Sri Lanka
 
-[Paper](https://ieeexplore.ieee.org/document/11450741) | [DOI](https://doi.org/10.1109/ICIIS69028.2026.11450741) | [Original DiffWave Code](https://github.com/lmnt-com/diffwave)
+[Paper](https://ieeexplore.ieee.org/document/11450741) | [DOI](https://doi.org/10.1109/ICIIS69028.2026.11450741)
 
 ## Overview
 
@@ -85,6 +85,10 @@ The radar plots compare FAD, precision, recall, density, and coverage. Values ar
 .
 ├── plots/                         # Feature examples, model diagram, and results
 ├── src/
+│   ├── Datasets/                  # Download/extract single-channel datasets here
+│   │   ├── LJSpeech-1.1/wavs/     # LJSpeech .wav files
+│   │   ├── ESC-50/audio/          # ESC-50 .wav files
+│   │   └── IRMAS/                 # IRMAS training .wav files, including subfolders
 │   └── diffwave/                  # Single-channel conditioning
 │       ├── preprocess.py          # Mel
 │       ├── preprocess_mfcc.py      # MFCC
@@ -95,6 +99,10 @@ The radar plots compare FAD, precision, recall, density, and coverage. Values ar
 │       ├── learner.py             # Training
 │       └── inference.py           # Waveform generation
 ├── src2/
+│   ├── Datasets/                  # Separate copies for two-channel experiments
+│   │   ├── LJSpeech-1.1/wavs/
+│   │   ├── ESC-50/audio/
+│   │   └── IRMAS/
 │   └── diffwave/                  # Two-channel conditioning
 │       ├── preprocess_mel+mfcc.py # Mel+MFCC
 │       ├── preprocess_mel+cqt.py  # Mel+CQT
@@ -105,7 +113,9 @@ The radar plots compare FAD, precision, recall, density, and coverage. Values ar
 └── README.md
 ```
 
-Preprocessing saves features as `<audio filename>.spec.npy`. Use `src` for single-channel experiments and `src2` for two-channel experiments, with the matching parameters and model. Implementation choices for details not fully specified in the paper are documented in the CQT and KLT preprocessors.
+Download and extract the datasets into the locations shown above; these directories are not included in the repository. Pass the corresponding audio folder to preprocessing and training, for example `src/Datasets/LJSpeech-1.1/wavs` or `src2/Datasets/ESC-50/audio`. WAV files are discovered recursively, so IRMAS can retain its instrument subfolders. Other dataset locations also work when supplied explicitly.
+
+Preprocessing saves features as `<audio filename>.spec.npy` beside each WAV file. Use separate dataset copies for each conditioning method because preprocessing overwrites these feature files. Use `src` for single-channel experiments and `src2` for two-channel experiments, with the matching parameters and model. Set `sample_rate` in the corresponding `params.py` to 22050 for LJSpeech or 44100 for ESC-50 and IRMAS. Implementation choices for details not fully specified in the paper are documented in the CQT and KLT preprocessors.
 
 ## Acknowledgements
 
